@@ -231,7 +231,3 @@ To use real BTS data:
 [![GitHub](https://img.shields.io/badge/GitHub-VijayKumaro7-black?logo=github)](https://github.com/VijayKumaro7)
 
 ---
-
-## 📄 License
-
-MIT License — see [LICENSE](LICENSE) for details.
