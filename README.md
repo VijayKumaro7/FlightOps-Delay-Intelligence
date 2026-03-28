@@ -1,10 +1,65 @@
 # ✈️ FlightOps Delay Intelligence
 
-> A MySQL-powered airline operations analytics system that detects SLA breaches, ranks carriers by on-time performance, and surfaces delay propagation patterns — built on real BTS (Bureau of Transportation Statistics) data structures.
+> A MySQL-powered airline operations analytics system with an interactive Streamlit dashboard — detects SLA breaches, ranks carriers by on-time performance, and surfaces delay propagation patterns across 500K+ synthetic flights modelled on real BTS data structures.
 
 [![MySQL](https://img.shields.io/badge/MySQL-8.0+-blue?logo=mysql)](https://www.mysql.com/)
 [![Python](https://img.shields.io/badge/Python-3.9+-green?logo=python)](https://python.org)
+[![Streamlit](https://img.shields.io/badge/Streamlit-1.32+-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io)
+[![Plotly](https://img.shields.io/badge/Plotly-5.20+-3F4F75?logo=plotly&logoColor=white)](https://plotly.com)
 [![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
+
+---
+
+## 📸 Dashboard Preview
+
+### Tab 1 — Carrier Performance
+
+**Carrier On-Time Rankings**
+![Carrier Rankings](dashboard/demo_images/01_carrier_rankings.png)
+
+**Month-over-Month Delay Trend**
+![MoM Trend](dashboard/demo_images/02_mom_trend.png)
+
+**Delay Root Cause Breakdown — Stacked Bar**
+![Root Cause Stacked](dashboard/demo_images/03a_root_cause_stacked.png)
+
+**Delay Root Cause Distribution — Donut**
+![Root Cause Donut](dashboard/demo_images/03b_root_cause_donut.png)
+
+---
+
+### Tab 2 — Airport Bottlenecks
+
+**Airport Delay Bubble Map (US)**
+![Airport Bubble Map](dashboard/demo_images/04_airport_bubble_map.png)
+
+**Top Airports by Departure Delay Rate**
+![Airport Delay Bar](dashboard/demo_images/05_airport_delay_bar.png)
+
+**Delay Propagation — Cascade Ratio by Airport**
+![Propagation Bar](dashboard/demo_images/06_propagation_bar.png)
+
+**Route Delay Rate Heatmap (Origin × Destination)**
+![Route Heatmap](dashboard/demo_images/07_route_heatmap.png)
+
+**Time-of-Day Delay Pattern**
+![Time of Day Heatmap](dashboard/demo_images/08_time_of_day_heatmap.png)
+
+---
+
+### Tab 3 — SLA Dashboard
+
+**Active Breach Severity Distribution**
+![SLA Severity Donut](dashboard/demo_images/09_sla_severity_donut.png)
+
+**Chronic Offender Routes**
+![Chronic Offenders](dashboard/demo_images/10_chronic_offenders.png)
+
+**Carrier SLA Compliance Gauges**
+![SLA Compliance Gauges](dashboard/demo_images/11_sla_compliance_gauges.png)
+
+**Carrier SLA Compliance Rate**
+![SLA Compliance Bar](dashboard/demo_images/12_sla_compliance_bar.png)
 
 ---
 
@@ -15,10 +70,11 @@
 | 🛫 Flight records supported | 500,000+ rows |
 | 🏢 Airlines modelled | 8 major US carriers |
 | 🗺️ Airports modelled | 12 major US hubs |
-| 📋 Analytical queries | 10+ complex queries |
+| 📋 Analytical queries | 10+ complex SQL queries |
 | ⚙️ Stored procedures | 3 (SLA flagging, scorecard, resolver) |
 | 🔔 Triggers | 4 (audit log, validation, breach alert) |
 | 🔍 Query optimizations | 4 documented (up to ~90% speedup) |
+| 📈 Dashboard charts | 13 interactive visualizations |
 
 ---
 
@@ -26,32 +82,56 @@
 
 Most SQL portfolios show a Library or Hospital schema. This project models something real:
 
-> **Airline Operations teams actually run these queries.** Dispatch analysts need to know which routes are breaching SLA contracts, which airports cascade delays downstream, and which carriers are trending worse month-over-month. This project builds that SQL layer from scratch.
+> **Airline Operations teams actually run these queries.** Dispatch analysts need to know which routes are breaching SLA contracts, which airports cascade delays downstream, and which carriers are trending worse month-over-month. This project builds that SQL layer from scratch — and surfaces all of it through an interactive Streamlit dashboard powered by Plotly.
+
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Technology | Purpose |
+|-------|-----------|---------|
+| **Database** | MySQL 8.0+ | Storage, window functions, CTEs, stored procedures, triggers |
+| **Data Generation** | Python + Faker | 500K+ synthetic rows matching BTS distributions |
+| **Dashboard** | Streamlit 1.32+ | Single-page app with sidebar filters and tabbed layout |
+| **Charts** | Plotly 5.20+ | Interactive bar, line, pie, heatmap, bubble map, gauges |
+| **DB Connection** | SQLAlchemy + PyMySQL | Executes SQL queries, returns pandas DataFrames |
+| **Data Layer** | pandas | DataFrame pivoting and reshaping for heatmaps |
+| **Demo Images** | matplotlib + seaborn | Static PNG exports (no DB required) |
+| **SQL Client** | DBeaver / MySQL Workbench | Query development and EXPLAIN analysis |
 
 ---
 
 ## 🏗️ Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                      MySQL 8.0 Database                      │
-│                                                              │
-│  ┌──────────┐    ┌──────────┐    ┌──────────────────────┐   │
-│  │ airlines │    │ airports │    │       flights         │   │
-│  └────┬─────┘    └────┬─────┘    │  (500K+ rows)        │   │
-│       │               │          └──────────┬───────────┘   │
-│       └──────┬────────┘                     │               │
-│           ┌──▼──────┐          ┌────────────▼───────────┐   │
-│           │ routes  │◄─────────│  Stored Procedures     │   │
-│           └─────────┘          │  sp_flag_delayed_routes│   │
-│                                │  sp_monthly_scorecard  │   │
-│  ┌─────────────────────┐       └────────────────────────┘   │
-│  │   sla_breach_log    │◄──── Triggers + Procedures         │
-│  └─────────────────────┘                                    │
-│  ┌─────────────────────┐                                    │
-│  │     audit_log       │◄──── All 4 triggers write here     │
-│  └─────────────────────┘                                    │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                    Streamlit Dashboard                           │
+│  ┌─────────────────┐ ┌──────────────────┐ ┌─────────────────┐  │
+│  │ Carrier         │ │ Airport          │ │ SLA             │  │
+│  │ Performance     │ │ Bottlenecks      │ │ Dashboard       │  │
+│  │ • Rankings      │ │ • Bubble Map     │ │ • Breach Table  │  │
+│  │ • MoM Trend     │ │ • Route Heatmap  │ │ • Gauges        │  │
+│  │ • Root Cause    │ │ • Time-of-Day    │ │ • Compliance    │  │
+│  └────────┬────────┘ └────────┬─────────┘ └────────┬────────┘  │
+└───────────┼──────────────────┼──────────────────────┼──────────┘
+            │   SQLAlchemy + pandas                    │
+┌───────────▼──────────────────▼──────────────────────▼──────────┐
+│                      MySQL 8.0 Database                         │
+│  ┌──────────┐  ┌──────────┐  ┌──────────────────────────────┐  │
+│  │ airlines │  │ airports │  │ flights  (500K+ rows)         │  │
+│  └────┬─────┘  └────┬─────┘  └──────────────┬───────────────┘  │
+│       └──────┬───────┘                       │                  │
+│           ┌──▼──────┐          ┌─────────────▼──────────────┐  │
+│           │ routes  │◄─────────│ Stored Procedures          │  │
+│           └─────────┘          │ sp_flag_delayed_routes     │  │
+│                                │ sp_monthly_scorecard       │  │
+│  ┌──────────────────────┐      └────────────────────────────┘  │
+│  │   sla_breach_log     │◄──── Triggers + Procedures           │
+│  └──────────────────────┘                                      │
+│  ┌──────────────────────┐                                      │
+│  │     audit_log        │◄──── All 4 triggers write here       │
+│  └──────────────────────┘                                      │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ### Entity Relationship (simplified)
@@ -72,40 +152,60 @@ airlines ──< routes >── airports
 ### Prerequisites
 - MySQL 8.0+
 - Python 3.9+
-- pip
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/VijayKumaro7/flightops-sql.git
-cd flightops-sql
+git clone https://github.com/VijayKumaro7/FlightOps-Delay-Intelligence.git
+cd FlightOps-Delay-Intelligence
 ```
 
-### 2. Create the database and schema
+### 2. Install dependencies
 ```bash
-mysql -u root -p < schema/01_tables.sql
-mysql -u root -p flightops < schema/02_indexes.sql
-mysql -u root -p flightops < schema/03_views.sql
+pip install -r requirements.txt
 ```
 
-### 3. Load stored procedures and triggers
+### 3. Create the database and schema
 ```bash
-mysql -u root -p flightops < procedures/sp_flag_delayed_routes.sql
-mysql -u root -p flightops < triggers/trg_audit_log.sql
+mysql -u root -p -e "CREATE DATABASE flightops;"
+mysql -u root -p flightops < 01_tables.sql
+mysql -u root -p flightops < 02_indexes.sql
+mysql -u root -p flightops < 03_views.sql
 ```
 
-### 4. Seed synthetic data
+### 4. Load stored procedures and triggers
 ```bash
-pip install faker mysql-connector-python
-python seed/seed_data.py --rows 500000 --user root --password yourpassword
+mysql -u root -p flightops < sp_flag_delayed_routes.sql
+mysql -u root -p flightops < trg_audit_log.sql
 ```
 
-### 5. Run the SLA breach detector
+### 5. Seed synthetic data
+```bash
+python seed_data.py --rows 500000 --user root --password yourpassword
+```
+
+### 6. Run the SLA breach detector
 ```sql
 USE flightops;
 SET @breaches = 0;
 CALL sp_flag_delayed_routes(CURDATE(), @breaches);
 SELECT CONCAT(@breaches, ' new SLA breaches logged') AS result;
 ```
+
+### 7. Launch the dashboard
+```bash
+# Set DB credentials (or use defaults: root@localhost/flightops)
+export FLIGHTOPS_USER=root
+export FLIGHTOPS_PASSWORD=yourpassword
+
+streamlit run dashboard/app.py
+# Opens at http://localhost:8501
+```
+
+> **No database?** Generate demo images locally without any DB connection:
+> ```bash
+> python dashboard/generate_demo_images.py
+> # Outputs 13 PNGs to dashboard/demo_images/
+> ```
 
 ---
 
@@ -134,11 +234,13 @@ FROM base;
 ```sql
 SELECT
     carrier_code,
-    DATE_FORMAT(flight_date, '%Y-%m') AS month,
-    ROUND(100.0 * SUM(CASE WHEN arr_delay_mins >= 15 THEN 1 ELSE 0 END) / COUNT(*), 2) AS delay_rate,
-    LAG(ROUND(100.0 * SUM(...) / COUNT(*), 2)) OVER (PARTITION BY carrier_code ORDER BY month) AS prev_month,
-    -- See full query in queries/carrier_performance.sql
-FROM flights f JOIN ...
+    DATE_FORMAT(flight_date, '%Y-%m') AS month_label,
+    delay_rate_pct,
+    LAG(delay_rate_pct) OVER (PARTITION BY carrier_code ORDER BY month_label) AS prev_month_rate,
+    ROUND(delay_rate_pct -
+          LAG(delay_rate_pct) OVER (PARTITION BY carrier_code ORDER BY month_label), 2) AS mom_change_pct
+FROM monthly
+ORDER BY carrier_code, month_label;
 ```
 
 ### 3. Delay Propagation — Finding Cascade Airports
@@ -170,27 +272,45 @@ ORDER BY propagation_ratio_pct DESC LIMIT 15;
 ## 🗂️ Repository Structure
 
 ```
-flightops-sql/
+FlightOps-Delay-Intelligence/
 ├── README.md
-├── .gitignore
-├── schema/
-│   ├── 01_tables.sql          # All DDL — 7 tables
-│   ├── 02_indexes.sql         # 9 indexes with rationale
-│   └── 03_views.sql           # 3 analytical views
-├── procedures/
-│   └── sp_flag_delayed_routes.sql   # 3 stored procedures
-├── triggers/
-│   └── trg_audit_log.sql      # 4 triggers (audit + validation)
-├── queries/
-│   ├── carrier_performance.sql      # Rankings, MoM trend, root cause
-│   ├── airport_bottlenecks.sql      # Hotspots, propagation, time-of-day
-│   └── sla_breach_report.sql        # Active breaches, chronic offenders
-├── optimization/
-│   └── query_optimization.sql  # 4 before/after EXPLAIN comparisons
-├── seed/
-│   └── seed_data.py            # Generates 500K+ realistic rows
-└── docs/
-    └── ERD.png                 # Entity relationship diagram
+├── requirements.txt                  # All Python dependencies
+│
+├── 01_tables.sql                     # DDL — 7 core tables + 3 log/audit tables
+├── 02_indexes.sql                    # 9 performance indexes with rationale
+├── 03_views.sql                      # 3 analytical views (pre-aggregations)
+├── sp_flag_delayed_routes.sql        # 3 stored procedures
+├── trg_audit_log.sql                 # 4 triggers (audit + validation)
+│
+├── carrier_performance.sql           # Rankings, MoM trend, root cause
+├── airport_bottlenecks.sql           # Hotspots, propagation, time-of-day
+├── sla_breach_report.sql             # Active breaches, chronic offenders
+├── query_optimization.sql            # 4 before/after EXPLAIN comparisons
+│
+├── seed_data.py                      # Generates 500K+ realistic flight rows
+│
+└── dashboard/
+    ├── app.py                        # Streamlit entrypoint + sidebar filters
+    ├── db.py                         # SQLAlchemy engine, run_query() helper
+    ├── generate_demo_images.py       # Generates all PNGs (no DB needed)
+    ├── pages/
+    │   ├── carrier_performance.py    # Tab 1: rankings, trend, root cause
+    │   ├── airport_bottlenecks.py    # Tab 2: map, heatmaps, propagation
+    │   └── sla_dashboard.py          # Tab 3: breaches, gauges, compliance
+    └── demo_images/                  # 13 pre-generated chart PNGs
+        ├── 01_carrier_rankings.png
+        ├── 02_mom_trend.png
+        ├── 03a_root_cause_stacked.png
+        ├── 03b_root_cause_donut.png
+        ├── 04_airport_bubble_map.png
+        ├── 05_airport_delay_bar.png
+        ├── 06_propagation_bar.png
+        ├── 07_route_heatmap.png
+        ├── 08_time_of_day_heatmap.png
+        ├── 09_sla_severity_donut.png
+        ├── 10_chronic_offenders.png
+        ├── 11_sla_compliance_gauges.png
+        └── 12_sla_compliance_bar.png
 ```
 
 ---
@@ -206,28 +326,20 @@ flightops-sql/
 
 ---
 
-## 🛠️ Tech Stack
-
-- **MySQL 8.0** — Window functions, CTEs, JSON columns, stored procedures
-- **Python 3.9** — Seed data generation (Faker + mysql-connector)
-- **DBeaver / MySQL Workbench** — Query development and EXPLAIN analysis
-
----
-
 ## 📚 Data Source
 
 This project uses **synthetic data** generated to match the statistical distributions of the [US Bureau of Transportation Statistics On-Time Performance dataset](https://www.transtats.bts.gov/DL_SelectFields.aspx?gnoyr_VQ=FGJ).
 
 To use real BTS data:
 1. Download CSV from the BTS website (free, public domain)
-2. Replace the seed script with a CSV loader
-3. All schema and queries remain identical
+2. Replace `seed_data.py` with a CSV loader
+3. All schema, queries, and dashboard code remain identical
 
 ---
 
 ## 🧑‍💻 Author
 
-**Vijay Kumar** — Aspiring Data/ML Engineer  
+**Vijay Kumar** — Aspiring Data/ML Engineer
 [![GitHub](https://img.shields.io/badge/GitHub-VijayKumaro7-black?logo=github)](https://github.com/VijayKumaro7)
 
 ---
