@@ -14,52 +14,85 @@
 
 ### Tab 1 — Carrier Performance
 
-**Carrier On-Time Rankings**
+**1. Carrier On-Time Rankings**
 ![Carrier Rankings](dashboard/demo_images/01_carrier_rankings.png)
+> Each airline is ranked by its delay rate (flights arriving 15+ minutes late). Bars are colour-coded green-to-red — the shorter and greener the bar, the better the carrier. A dashed line marks the 15% SLA threshold so you can instantly spot which carriers are over the limit.
 
-**Month-over-Month Delay Trend**
+---
+
+**2. Month-over-Month Delay Trend**
 ![MoM Trend](dashboard/demo_images/02_mom_trend.png)
+> A line chart showing how each carrier's delay rate changed every month across 2023. Rising lines mean a carrier is getting worse; falling lines mean it's improving. Useful for spotting seasonal spikes (e.g. holiday travel) or a carrier in long-term decline.
 
-**Delay Root Cause Breakdown — Stacked Bar**
+---
+
+**3. Delay Root Cause Breakdown — Stacked Bar**
 ![Root Cause Stacked](dashboard/demo_images/03a_root_cause_stacked.png)
+> For each airline, the bar is split into 5 delay causes: Carrier (internal ops), Weather, NAS (air traffic control), Security, and Late Aircraft (a plane arriving late from a previous flight). This shows which airline has the most controllable vs. uncontrollable delays.
 
-**Delay Root Cause Distribution — Donut**
+---
+
+**4. Delay Root Cause Distribution — Donut**
 ![Root Cause Donut](dashboard/demo_images/03b_root_cause_donut.png)
+> A rolled-up view across all carriers combined. The donut shows that Late Aircraft (23%) and Carrier issues (35%) together account for over half of all delay minutes — meaning more than half of delays are theoretically fixable by airlines themselves.
 
 ---
 
 ### Tab 2 — Airport Bottlenecks
 
-**Airport Delay Bubble Map (US)**
+**5. Airport Delay Bubble Map**
 ![Airport Bubble Map](dashboard/demo_images/04_airport_bubble_map.png)
+> Every major US hub plotted on a map. The bigger and darker the bubble, the longer the average departure delay at that airport. Instantly shows which cities are the worst departure hubs without reading a single number.
 
-**Top Airports by Departure Delay Rate**
+---
+
+**6. Top Airports by Departure Delay Rate**
 ![Airport Delay Bar](dashboard/demo_images/05_airport_delay_bar.png)
+> A ranked bar chart of airports sorted by the percentage of flights that depart late. Complements the map above with exact numbers — useful for ops teams deciding where to focus ground crew resources.
 
-**Delay Propagation — Cascade Ratio by Airport**
+---
+
+**7. Delay Propagation — Cascade Ratio by Airport**
 ![Propagation Bar](dashboard/demo_images/06_propagation_bar.png)
+> Shows how much of an airport's delay is caused by incoming aircraft arriving late from other cities (the "late aircraft" cascade effect). A high propagation ratio means the airport is largely a victim of upstream problems, not its own inefficiency.
 
-**Route Delay Rate Heatmap (Origin × Destination)**
+---
+
+**8. Route Delay Rate Heatmap**
 ![Route Heatmap](dashboard/demo_images/07_route_heatmap.png)
+> A grid where every row is an origin airport and every column is a destination. Each cell is colour-coded by delay rate — dark red cells are the worst-performing routes. Makes it easy to spot city-pairs that are consistently problematic regardless of carrier.
 
-**Time-of-Day Delay Pattern**
+---
+
+**9. Time-of-Day Delay Pattern**
 ![Time of Day Heatmap](dashboard/demo_images/08_time_of_day_heatmap.png)
+> The same heatmap idea applied to time slots (Red-eye → Morning → Midday → Afternoon → Evening). Confirms the well-known aviation rule: early morning flights are the most on-time because delays haven't had a chance to compound yet; evening flights are the worst.
 
 ---
 
 ### Tab 3 — SLA Dashboard
 
-**Active Breach Severity Distribution**
+**10. Active Breach Severity Distribution**
 ![SLA Severity Donut](dashboard/demo_images/09_sla_severity_donut.png)
+> A donut showing the current split of unresolved SLA violations by severity: Critical (delay rate ≥ 30%), High (≥ 20%), and Medium (< 20%). The total breach count is displayed in the centre. Gives ops managers an at-a-glance health check of the network.
 
-**Chronic Offender Routes**
+---
+
+**11. Chronic Offender Routes**
 ![Chronic Offenders](dashboard/demo_images/10_chronic_offenders.png)
+> Routes that have breached their SLA 3 or more times in the last 90 days. Bars are coloured by pattern — red for Chronic (6+ breaches, structural problem), orange for Recurring (3–5 breaches, needs monitoring), blue for Intermittent. Longer bars = more breaches = more urgent action needed.
 
-**Carrier SLA Compliance Gauges**
+---
+
+**12. Carrier SLA Compliance Gauges**
 ![SLA Compliance Gauges](dashboard/demo_images/11_sla_compliance_gauges.png)
+> One gauge dial per airline showing what percentage of their routes are currently meeting SLA targets. Green means above 90% (healthy), orange means 75–90% (at risk), red means below 75% (breaching). A quick executive-level view of carrier health.
 
-**Carrier SLA Compliance Rate**
+---
+
+**13. Carrier SLA Compliance Rate**
 ![SLA Compliance Bar](dashboard/demo_images/12_sla_compliance_bar.png)
+> The same compliance data as the gauges but as a horizontal bar chart for easy comparison across all carriers at once. Two reference lines mark the 90% target (green dashed) and the 75% at-risk threshold (orange dashed) so the status of each carrier is immediately obvious.
 
 ---
 
