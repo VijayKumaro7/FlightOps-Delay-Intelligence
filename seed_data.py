@@ -45,40 +45,70 @@ AIRPORTS = [
 ]
 
 
-def random_delay():
+# Monthly delay multipliers — winter/holiday months are worse (matches BTS patterns)
+_MONTH_DELAY_MULTIPLIER = {
+    1: 1.35,   # January  — winter storms
+    2: 1.30,   # February — winter storms
+    3: 1.10,   # March    — spring ramp-up
+    4: 1.00,   # April    — baseline
+    5: 1.00,   # May      — baseline
+    6: 1.15,   # June     — summer travel surge
+    7: 1.10,   # July     — summer travel
+    8: 1.05,   # August   — late summer
+    9: 0.95,   # September — quieter
+    10: 0.90,  # October  — quietest
+    11: 1.10,  # November — Thanksgiving
+    12: 1.40,  # December — Christmas/New Year peak
+}
+
+
+def random_delay(month: int = 6):
     """
-    Realistic delay distribution:
-    ~72% on-time / early, ~18% slightly late, ~7% moderately late, ~3% severely late
+    Realistic delay distribution with seasonal variation.
+    Base: ~72% on-time / early, ~18% slightly late, ~7% moderately late, ~3% severely late.
+    Multiplier shifts thresholds higher in winter/holiday months.
     """
+    multiplier = _MONTH_DELAY_MULTIPLIER.get(month, 1.0)
     roll = random.random()
-    if roll < 0.30:
+    # Shift on-time probability down by multiplier so bad months produce more delays
+    on_time_threshold = min(0.72 / multiplier, 0.72)
+    early_threshold   = 0.30 * (on_time_threshold / 0.72)
+
+    if roll < early_threshold:
         return random.randint(-20, -1)     # Early
-    elif roll < 0.72:
+    elif roll < on_time_threshold:
         return random.randint(0, 14)       # On time (< 15 min)
-    elif roll < 0.87:
+    elif roll < on_time_threshold + 0.15:
         return random.randint(15, 45)      # Minor delay
-    elif roll < 0.95:
+    elif roll < on_time_threshold + 0.23:
         return random.randint(46, 120)     # Moderate delay
     else:
         return random.randint(121, 480)    # Severe delay
 
 
 def split_delay_into_causes(total_delay):
-    """Split a total delay into BTS cause categories."""
+    """
+    Split a total delay into BTS cause categories.
+    Uses a remainder-based approach so component totals always equal
+    total_delay exactly — preventing trigger validation failures.
+    """
     if total_delay <= 0:
         return 0, 0, 0, 0, 0
 
-    causes = ["carrier", "weather", "nas", "security", "late_aircraft"]
+    causes  = ["carrier", "weather", "nas", "security", "late_aircraft"]
     weights = [0.35, 0.20, 0.20, 0.02, 0.23]
-    result = {c: 0 for c in causes}
+    result  = {c: 0 for c in causes}
 
     remaining = total_delay
     for i, cause in enumerate(causes[:-1]):
-        portion = int(remaining * weights[i] * random.uniform(0.6, 1.4))
-        portion = min(portion, remaining)
+        # Cap the random factor so we never overshoot the remaining budget
+        max_factor = min(1.4, remaining / max(remaining * weights[i], 1))
+        factor  = random.uniform(0.6, max_factor)
+        portion = min(int(remaining * weights[i] * factor), remaining)
         result[cause] = max(0, portion)
         remaining -= result[cause]
 
+    # Last cause absorbs the remainder so sum == total_delay exactly
     result["late_aircraft"] = max(0, remaining)
     return (result["carrier"], result["weather"], result["nas"],
             result["security"], result["late_aircraft"])
@@ -150,10 +180,13 @@ def seed(rows: int, conn_params: dict):
     for i in range(rows):
         route_id   = random.choice(all_route_ids)
         flight_date = start_date + datetime.timedelta(days=random.randint(0, 364))
+        month      = flight_date.month
         sched_dep  = random.choice([600, 700, 800, 900, 1000, 1100, 1200,
                                     1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000])
-        arr_delay  = random_delay()
-        dep_delay  = max(arr_delay - random.randint(0, 10), arr_delay)
+        arr_delay  = random_delay(month)
+        # Departure delay is correlated with but independent of arrival delay:
+        # planes depart a few minutes later than they arrive late (crew prep, boarding)
+        dep_delay  = arr_delay + random.randint(-3, 12)
         cancelled  = 1 if random.random() < 0.02 else 0
 
         if cancelled:

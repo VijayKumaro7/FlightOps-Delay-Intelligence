@@ -86,6 +86,9 @@ CREATE TABLE sla_rules (
     min_flights_window  INT          NOT NULL DEFAULT 100   COMMENT 'Minimum flights needed to trigger evaluation',
     window_days         INT          NOT NULL DEFAULT 30    COMMENT 'Rolling window in days',
     created_at          TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+    updated_at          TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                                     COMMENT 'Tracks when an SLA threshold was last changed',
+    updated_by          VARCHAR(100) DEFAULT NULL           COMMENT 'User who last modified this rule',
     PRIMARY KEY (rule_id),
     FOREIGN KEY (carrier_code) REFERENCES airlines(carrier_code)
 );
@@ -104,6 +107,8 @@ CREATE TABLE sla_breach_log (
     resolved        TINYINT(1)   DEFAULT 0,
     created_at      TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (breach_id),
+    UNIQUE KEY uq_breach_route_date_rule (route_id, breach_date, rule_id)
+                                         COMMENT 'Prevents duplicate breach records from concurrent procedure runs',
     FOREIGN KEY (route_id) REFERENCES routes(route_id),
     FOREIGN KEY (rule_id)  REFERENCES sla_rules(rule_id)
 );

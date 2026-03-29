@@ -6,13 +6,13 @@ Mirrors the queries in airport_bottlenecks.sql.
 
 import streamlit as st
 import plotly.express as px
-import plotly.graph_objects as go
 import pandas as pd
 import sys
 import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from db import run_query
+from config import DELAY_MINOR_MINS
 
 
 # ── SQL (mirrors airport_bottlenecks.sql) ─────────────────────────────────────
@@ -28,7 +28,7 @@ WITH dep_stats AS (
         ap.longitude,
         COUNT(*)                                                         AS total_departures,
         ROUND(AVG(f.dep_delay_mins), 2)                                  AS avg_dep_delay,
-        ROUND(100.0 * SUM(CASE WHEN f.dep_delay_mins >= 15
+        ROUND(100.0 * SUM(CASE WHEN f.dep_delay_mins >= {delay_mins}
                           THEN 1 ELSE 0 END) / COUNT(*), 2)             AS dep_delay_rate_pct,
         MAX(f.dep_delay_mins)                                            AS worst_dep_delay,
         SUM(CASE WHEN f.dep_delay_mins >= 60 THEN 1 ELSE 0 END)         AS extreme_delays
@@ -83,7 +83,7 @@ SELECT
     ap_d.city                                                            AS dest_city,
     COUNT(*)                                                             AS flights,
     ROUND(AVG(f.arr_delay_mins), 1)                                      AS avg_arr_delay,
-    ROUND(100.0 * SUM(CASE WHEN f.arr_delay_mins >= 15
+    ROUND(100.0 * SUM(CASE WHEN f.arr_delay_mins >= {delay_mins}
                       THEN 1 ELSE 0 END) / COUNT(*), 1)                 AS delay_rate_pct
 FROM  flights  f
 JOIN  routes   r    ON f.route_id    = r.route_id
@@ -110,7 +110,7 @@ SELECT
     END                                                                  AS time_slot,
     COUNT(*)                                                             AS flights,
     ROUND(AVG(f.dep_delay_mins), 2)                                      AS avg_dep_delay,
-    ROUND(100.0 * SUM(CASE WHEN f.dep_delay_mins >= 15
+    ROUND(100.0 * SUM(CASE WHEN f.dep_delay_mins >= {delay_mins}
                       THEN 1 ELSE 0 END) / COUNT(*), 2)                 AS delay_rate_pct
 FROM  flights  f
 JOIN  routes   r ON f.route_id = r.route_id
@@ -123,9 +123,7 @@ ORDER BY r.origin, avg_dep_delay DESC
 
 
 def _carrier_filter_clause(carrier: str) -> str:
-    if carrier == "All":
-        return ""
-    return "AND r.carrier_code = :carrier_code"
+    return "" if carrier == "All" else "AND r.carrier_code = :carrier_code"
 
 
 def render(selected_carrier: str, start_date, end_date):
@@ -134,43 +132,35 @@ def render(selected_carrier: str, start_date, end_date):
     if selected_carrier != "All":
         params["carrier_code"] = selected_carrier
 
-    # ── Top delay-prone airports bubble map ───────────────────────────────────
+    sql_fmt = dict(carrier_filter=cf, delay_mins=DELAY_MINOR_MINS)
+
+    # ── Top delay-prone airports ──────────────────────────────────────────────
     st.subheader("Top Delay-Prone Airports")
-    try:
-        df_top = run_query(_TOP_AIRPORTS_SQL.format(carrier_filter=cf), params)
-    except Exception as e:
-        st.error(f"Database error: {e}")
-        return
+    with st.spinner("Loading airport data..."):
+        df_top = run_query(_TOP_AIRPORTS_SQL.format(**sql_fmt), params)
 
     if df_top.empty:
-        st.info("No data for selected filters.")
+        st.info("No airport data for the selected filters.")
         return
 
     fig_map = px.scatter_geo(
         df_top,
-        lat="latitude",
-        lon="longitude",
-        size="avg_dep_delay",
-        color="avg_dep_delay",
+        lat="latitude", lon="longitude",
+        size="avg_dep_delay", color="avg_dep_delay",
         hover_name="airport_name",
         hover_data={"city": True, "state": True, "avg_dep_delay": ":.1f",
                     "dep_delay_rate_pct": ":.1f", "latitude": False, "longitude": False},
-        color_continuous_scale="Reds",
-        scope="usa",
+        color_continuous_scale="Reds", scope="usa",
         title="Average Departure Delay by Airport (bubble size = delay magnitude)",
         labels={"avg_dep_delay": "Avg Dep Delay (min)"},
     )
     fig_map.update_layout(height=450)
     st.plotly_chart(fig_map, use_container_width=True)
 
-    # Bar chart — top 10 airports by delay rate
     fig_bar = px.bar(
         df_top.head(10).sort_values("dep_delay_rate_pct", ascending=True),
-        x="dep_delay_rate_pct",
-        y="airport_code",
-        orientation="h",
-        color="dep_delay_rate_pct",
-        color_continuous_scale="Oranges",
+        x="dep_delay_rate_pct", y="airport_code", orientation="h",
+        color="dep_delay_rate_pct", color_continuous_scale="Oranges",
         labels={"dep_delay_rate_pct": "Departure Delay Rate (%)", "airport_code": "Airport"},
         title="Top 10 Airports by Departure Delay Rate",
         text="dep_delay_rate_pct",
@@ -179,46 +169,56 @@ def render(selected_carrier: str, start_date, end_date):
     fig_bar.update_layout(coloraxis_showscale=False, height=380)
     st.plotly_chart(fig_bar, use_container_width=True)
 
+    with st.expander("Airport stats table"):
+        disp = ["airport_code", "airport_name", "city", "state",
+                "total_departures", "avg_dep_delay", "dep_delay_rate_pct", "extreme_delays"]
+        st.dataframe(df_top[disp], use_container_width=True)
+        st.download_button("⬇ Download Airport Stats CSV",
+                           df_top[disp].to_csv(index=False),
+                           file_name="airport_stats.csv", mime="text/csv")
+
     st.divider()
 
     # ── Delay Propagation ─────────────────────────────────────────────────────
     st.subheader("Delay Propagation (Late Aircraft Effect)")
-    try:
-        df_prop = run_query(_PROPAGATION_SQL.format(carrier_filter=cf), params)
-    except Exception as e:
-        st.error(f"Database error: {e}")
-        return
+    with st.spinner("Loading propagation data..."):
+        df_prop = run_query(_PROPAGATION_SQL.format(**sql_fmt), params)
 
-    if not df_prop.empty:
+    if df_prop.empty:
+        st.info("No propagation data for the selected filters (need 30+ affected flights).")
+    else:
         fig_prop = px.bar(
             df_prop.sort_values("propagation_ratio_pct", ascending=True),
-            x="propagation_ratio_pct",
-            y="airport_code",
-            orientation="h",
-            color="propagation_ratio_pct",
-            color_continuous_scale="Blues",
+            x="propagation_ratio_pct", y="airport_code", orientation="h",
+            color="propagation_ratio_pct", color_continuous_scale="Blues",
             labels={"propagation_ratio_pct": "Propagation Ratio (%)", "airport_code": "Airport"},
             title="Cascade Delay Ratio by Airport (% of arrival delay from upstream late aircraft)",
             text="propagation_ratio_pct",
             hover_data={"city": True, "avg_late_aircraft_delay": ":.1f"},
         )
         fig_prop.update_traces(texttemplate="%{text:.0f}%", textposition="outside")
-        fig_prop.update_layout(coloraxis_showscale=False, height=400)
+        fig_prop.update_layout(coloraxis_showscale=False, height=420)
         st.plotly_chart(fig_prop, use_container_width=True)
+
+        with st.expander("Propagation data table"):
+            st.dataframe(df_prop, use_container_width=True)
+            st.download_button("⬇ Download Propagation CSV",
+                               df_prop.to_csv(index=False),
+                               file_name="propagation.csv", mime="text/csv")
 
     st.divider()
 
     # ── Route Pair Heatmap ────────────────────────────────────────────────────
     st.subheader("Origin → Destination Delay Heatmap")
-    try:
-        df_routes = run_query(_ROUTE_HEATMAP_SQL.format(carrier_filter=cf), params)
-    except Exception as e:
-        st.error(f"Database error: {e}")
-        return
+    with st.spinner("Loading route heatmap..."):
+        df_routes = run_query(_ROUTE_HEATMAP_SQL.format(**sql_fmt), params)
 
-    if not df_routes.empty:
+    if df_routes.empty:
+        st.info("No route data for the selected filters (need 20+ flights per route).")
+    else:
         pivot = df_routes.pivot_table(
-            index="origin", columns="destination", values="delay_rate_pct", aggfunc="mean"
+            index="origin", columns="destination",
+            values="delay_rate_pct", aggfunc="mean",
         )
         fig_heat = px.imshow(
             pivot,
@@ -227,23 +227,29 @@ def render(selected_carrier: str, start_date, end_date):
             title="Route Delay Rate Heatmap (origin rows × destination columns)",
             aspect="auto",
         )
-        fig_heat.update_layout(height=450)
+        fig_heat.update_layout(height=480)
         st.plotly_chart(fig_heat, use_container_width=True)
+
+        with st.expander("Route data table"):
+            st.dataframe(df_routes, use_container_width=True)
+            st.download_button("⬇ Download Route Heatmap CSV",
+                               df_routes.to_csv(index=False),
+                               file_name="route_heatmap.csv", mime="text/csv")
 
     st.divider()
 
     # ── Time-of-Day Pattern ───────────────────────────────────────────────────
     st.subheader("Time-of-Day Delay Pattern")
-    try:
-        df_tod = run_query(_TIME_OF_DAY_SQL.format(carrier_filter=cf), params)
-    except Exception as e:
-        st.error(f"Database error: {e}")
-        return
+    with st.spinner("Loading time-of-day data..."):
+        df_tod = run_query(_TIME_OF_DAY_SQL.format(**sql_fmt), params)
 
-    if not df_tod.empty:
+    if df_tod.empty:
+        st.info("No time-of-day data for the selected filters.")
+    else:
         time_order = ["12AM-6AM", "6AM-10AM", "10AM-2PM", "2PM-6PM", "6PM-12AM"]
         pivot_tod = df_tod.pivot_table(
-            index="airport_code", columns="time_slot", values="avg_dep_delay", aggfunc="mean"
+            index="airport_code", columns="time_slot",
+            values="avg_dep_delay", aggfunc="mean",
         ).reindex(columns=[t for t in time_order if t in df_tod["time_slot"].unique()])
 
         fig_tod = px.imshow(
@@ -253,5 +259,11 @@ def render(selected_carrier: str, start_date, end_date):
             title="Average Departure Delay by Airport × Time of Day",
             aspect="auto",
         )
-        fig_tod.update_layout(height=420)
+        fig_tod.update_layout(height=440)
         st.plotly_chart(fig_tod, use_container_width=True)
+
+        with st.expander("Time-of-day data table"):
+            st.dataframe(df_tod, use_container_width=True)
+            st.download_button("⬇ Download Time-of-Day CSV",
+                               df_tod.to_csv(index=False),
+                               file_name="time_of_day.csv", mime="text/csv")
