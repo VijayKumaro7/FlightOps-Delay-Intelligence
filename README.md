@@ -96,6 +96,23 @@
 
 ---
 
+## 🏁 Conclusion
+
+The 13 charts across the three tabs together answer the three core questions every airline operations team needs to answer daily:
+
+**Tab 1 — Carrier Performance** answers *"Which carriers are underperforming, why, and is it getting worse?"*
+The rankings, MoM trend, and root cause charts show that more than half of all delay minutes come from causes airlines directly control — late aircraft turnarounds (23%) and internal carrier ops (35%). That means the majority of delays are fixable, not just weather-related bad luck. Carriers with rising MoM lines need intervention before those trends become chronic.
+
+**Tab 2 — Airport Bottlenecks** answers *"Where in the network are delays being created and spread?"*
+The bubble map and propagation chart together reveal two very different types of problem airports: those generating delays from within (inefficient ground ops, congestion) and those that are victims of upstream cascades passing delays down from other hubs. Treating them the same way wastes resources — the propagation ratio separates them clearly.
+
+**Tab 3 — SLA Dashboard** answers *"Who is in breach of contract and how serious is it?"*
+The severity donut, chronic offenders chart, and compliance gauges give ops managers and executives the full picture — from individual route violations to network-wide carrier health — in a single view. The distinction between Chronic (structural fix needed), Recurring (monitoring required), and Intermittent (watch and wait) routes makes prioritisation straightforward.
+
+Together, these views replace hours of manual SQL reporting with an always-on, filterable operations intelligence layer. In an industry where a single delayed hub can cascade into hundreds of missed connections, having this visibility in real time is the difference between reactive firefighting and proactive operations management.
+
+---
+
 ## 📊 Key Metrics
 
 | Metric | Value |
